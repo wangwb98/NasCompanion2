@@ -13,28 +13,40 @@ import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.*
 import android.Manifest
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.support.v4.app.ActivityCompat
+import android.text.method.ScrollingMovementMethod
 import android.util.Log
 
 import jcifs.smb.NtlmPasswordAuthentication
 import jcifs.smb.SmbFile
 import java.io.File
+import java.util.*
+
+import kotlinx.android.synthetic.main.content_main.*
+
 
 class MainActivity : AppCompatActivity() {
+
+    private var mBackgroundTimer: Timer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        textBox.movementMethod = ScrollingMovementMethod()
+
         setSupportActionBar(toolbar)
         toast("start running")
 
         fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
-            if ( checkPermission() )
-                listMediaFiles()
+            if ( checkPermission() ) {
+                mBackgroundTimer?.cancel()
+                mBackgroundTimer = Timer()
+                mBackgroundTimer?.schedule(CopyToNasTask(), 0)
+            }
             else
                 longToast("No permission to read storage files. Need to be granted.")
             //applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
@@ -95,6 +107,12 @@ class MainActivity : AppCompatActivity() {
         return cameraPair
     }
 
+    private inner class CopyToNasTask () : TimerTask() {
+        override fun run() {
+            listMediaFiles()
+        }
+    }
+
     private fun copyToNas(path: String): Boolean {
         val server_addr = "smb://192.168.0.2/public/"+Build.MODEL
         val n_list = path.split("/")
@@ -103,6 +121,8 @@ class MainActivity : AppCompatActivity() {
         Log.d(TAG, "To create file " + server_addr +"/"+folder_name+"/"+file_name)
 /*        val to_file = openFileOutput("test.test", MODE_PRIVATE)
         from_file.copyTo(to_file)*/
+
+        runOnUiThread { -> textBox.append("Copy "+path+" ...")}
 
         var smb_path = SmbFile(server_addr, NtlmPasswordAuthentication.ANONYMOUS)
         if (! smb_path.exists()) {
@@ -113,10 +133,16 @@ class MainActivity : AppCompatActivity() {
             smb_path.mkdir()
         }
         smb_path = SmbFile(server_addr +"/"+folder_name+"/"+file_name, NtlmPasswordAuthentication.ANONYMOUS)
-        val from_file = File(path).inputStream()
-        Log.d(TAG, from_file.available().toString())
-        from_file.copyTo(smb_path.outputStream)
-        from_file.close()
+        if (! smb_path.exists()) {
+            val from_file = File(path).inputStream()
+            Log.d(TAG, from_file.available().toString())
+            from_file.copyTo(smb_path.outputStream)
+            from_file.close()
+
+            runOnUiThread { -> textBox.append("Done\n") }
+        } else {
+            runOnUiThread { -> textBox.append ("Already exist\n") }
+        }
         return true
     }
     private fun getBucketId(path: String): String {
