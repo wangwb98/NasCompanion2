@@ -13,7 +13,14 @@ import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.*
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import android.support.v4.app.ActivityCompat
+import android.util.Log
+
+import jcifs.smb.NtlmPasswordAuthentication
+import jcifs.smb.SmbFile
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -62,59 +69,61 @@ class MainActivity : AppCompatActivity() {
 
     private fun listMediaFiles(): Pair<Long, String>? {
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
-        val SCREENSHOTS_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/Pictures/Screenshots"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
-        val SCREENSHOTS_IMAGE_BUCKET_ID = getBucketId(SCREENSHOTS_IMAGE_BUCKET_NAME)
-        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED)
+        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.DISPLAY_NAME)
         val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)
-        val selectionArgsForScreenshots = arrayOf(SCREENSHOTS_IMAGE_BUCKET_ID)
         var cameraPair: Pair<Long, String>? = null
 
         var cursor = applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
-            selection,
-            selectionArgs,
-            MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC")
+            null,
+            null,
+            MediaStore.Files.FileColumns.DATA + " DESC")
         if (cursor == null) return null
         if (cursor.moveToFirst()) {
             cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
                 cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
         }
+        do {
+            Log.d(TAG, cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+        } while(cursor.moveToNext())
+        //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+        toast(cursor.count.toString())
 
-        var screenshotsPair: Pair<Long, String>? = null
-        cursor = applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            selection,
-            selectionArgsForScreenshots,
-            MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC")
-        if (cursor == null) return null
-        if (cursor.moveToFirst()) {
-            screenshotsPair = Pair(
-                cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA))
-            )
-        }
+        return cameraPair
+    }
 
-        if (!cursor.isClosed) {
-            cursor.close()
+    private fun copyToNas(path: String): Boolean {
+        val server_addr = "smb://192.168.0.2/public/"+Build.MODEL
+        val n_list = path.split("/")
+        val folder_name = n_list[n_list.lastIndex-1]
+        val file_name = n_list[n_list.lastIndex]
+        Log.d(TAG, "To create file " + server_addr +"/"+folder_name+"/"+file_name)
+/*        val to_file = openFileOutput("test.test", MODE_PRIVATE)
+        from_file.copyTo(to_file)*/
+
+        var smb_path = SmbFile(server_addr, NtlmPasswordAuthentication.ANONYMOUS)
+        if (! smb_path.exists()) {
+            smb_path.mkdir()
         }
-        if (cameraPair != null && screenshotsPair != null) {
-            return if (cameraPair.first > screenshotsPair.first) {
-                screenshotsPair = null
-                cameraPair
-            } else {
-                cameraPair = null
-                screenshotsPair
-            }
-        } else if (cameraPair != null && screenshotsPair == null) {
-            return cameraPair
-        } else if (cameraPair ==null && screenshotsPair != null) {
-            return screenshotsPair
+        smb_path = SmbFile(server_addr +"/"+folder_name, NtlmPasswordAuthentication.ANONYMOUS)
+        if (! smb_path.exists()) {
+            smb_path.mkdir()
         }
-        return null
+        smb_path = SmbFile(server_addr +"/"+folder_name+"/"+file_name, NtlmPasswordAuthentication.ANONYMOUS)
+        val from_file = File(path).inputStream()
+        Log.d(TAG, from_file.available().toString())
+        from_file.copyTo(smb_path.outputStream)
+        from_file.close()
+        return true
     }
     private fun getBucketId(path: String): String {
         return path.toLowerCase().hashCode().toString()
+    }
+
+    companion object {
+        private val TAG = "NasComp"
     }
 }
