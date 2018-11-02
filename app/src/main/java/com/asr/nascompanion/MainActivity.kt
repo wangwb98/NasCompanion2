@@ -80,32 +80,29 @@ class NasSyncJob : Job() {
     }
     override fun onRunJob(params: Params): Result {
         // run our job here
-        val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-
-        val wifiInfo  = wifiManager.connectionInfo
-
-        val ssid = wifiInfo.ssid
-        Log.d(TAG, "ssid:"+ssid)
-        if (ssid == "xxxx") { /* todo: change the ssid with preferenceFragment */
-            NasSyncMediaFiles()
+        if (NasSyncMediaFiles())
             return Result.SUCCESS
-        }
-        return Result.RESCHEDULE
+        else return Result.RESCHEDULE
     }
-    private fun NasSyncMediaFiles(): Pair<Long, String>? {
+    private fun NasSyncMediaFiles(): Boolean {
+        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.DATE_TAKEN)
+/*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
-        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.DISPLAY_NAME)
-/*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)*/
         var cameraPair: Pair<Long, String>? = null
+
+        var returnVal = true
+
+        val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val targetSsidList = arrayOf("aaaa", "bbbb")
 
         var cursor = this.context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
             null,
             null,
             MediaStore.Files.FileColumns.DATA + " DESC")
-        if (cursor == null) return null
+        if (cursor == null) return false
         if (cursor.moveToFirst()) {
             cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
                 cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
@@ -113,18 +110,25 @@ class NasSyncJob : Job() {
         do {
             val n_list = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)).split("/")
             val picName = n_list[n_list.lastIndex-1]+"/"+n_list[n_list.lastIndex]
-            Log.d(TAG, picName)
-            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+            Log.d(TAG, picName+", taken on "+cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
+
+            val ssid  = wifiManager.connectionInfo.ssid
+            Log.d(TAG, "ssid:("+ssid.substring(1,ssid.lastIndex)+")")
+            if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) { /* todo: change the ssid with preferenceFragment */
+                returnVal = false
+                break
+            }
+            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)), cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
         } while(cursor.moveToNext())
         //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
         Log.d(TAG,cursor.count.toString())
-        return cameraPair
+        return returnVal
     }
     private fun getBucketId(path: String): String {
         return path.toLowerCase().hashCode().toString()
     }
 
-    private fun copyToNas(path: String): Boolean {
+    private fun copyToNas(path: String, date_taken: String): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
 
@@ -160,6 +164,7 @@ class NasSyncJob : Job() {
                         input.copyTo(output)
                     }
                 }
+                smb_path.setCreateTime(date_taken.toLong())
                 Log.d(TAG, from_file.available().toString())
             } else {
                 fileResult = "Already exists"
