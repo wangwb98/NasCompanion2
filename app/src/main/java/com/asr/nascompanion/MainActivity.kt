@@ -85,7 +85,10 @@ class NasSyncJob : Job() {
         else return Result.RESCHEDULE
     }
     private fun NasSyncMediaFiles(): Boolean {
-        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.DATE_TAKEN)
+        val projection = arrayOf(MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.DATE_TAKEN,
+            MediaStore.Images.Media.SIZE)
 /*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
@@ -118,7 +121,10 @@ class NasSyncJob : Job() {
                 returnVal = false
                 break
             }
-            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)), cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
+            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)),
+                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)),
+                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.SIZE))
+            )
         } while(cursor.moveToNext())
         //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
         Log.d(TAG,cursor.count.toString())
@@ -128,7 +134,7 @@ class NasSyncJob : Job() {
         return path.toLowerCase().hashCode().toString()
     }
 
-    private fun copyToNas(path: String, date_taken: String): Boolean {
+    private fun copyToNas(path: String, date_taken: String, fileSize: String): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
 
@@ -157,15 +163,18 @@ class NasSyncJob : Job() {
                 smb_path.mkdir()
             }
             smb_path = SmbFile(server_addr + "/" + folder_name + "/" + file_name, NtlmPasswordAuthentication.ANONYMOUS)
-            if (!smb_path.exists()) {
+            /* check if file exists and size is same as original file */
+            if (!smb_path.exists() || fileSize.toLong() != smb_path.length()) {
+                if (smb_path.exists()) smb_path.delete()
                 val from_file = File(path).inputStream()
-                from_file.use { input ->
-                    smb_path.outputStream.use { output ->
+                from_file.use{input ->
+                    smb_path.outputStream.use {output ->
                         input.copyTo(output)
                     }
                 }
-                smb_path.setCreateTime(date_taken.toLong())
-                Log.d(TAG, from_file.available().toString())
+                smb_path.lastModified = date_taken.toLong() /* this must be done after outputstream.close() */
+                Log.d(TAG, "Created new file time (taken) is: " +smb_path.lastModified().toString())
+                Log.d(TAG, "file size compare (taken) is: " +fileSize + " vs. "+smb_path.contentLength)
             } else {
                 fileResult = "Already exists"
             }
