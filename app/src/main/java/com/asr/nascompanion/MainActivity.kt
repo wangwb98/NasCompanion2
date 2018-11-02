@@ -18,6 +18,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
 import android.os.Build
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.LocalBroadcastManager
@@ -78,8 +80,17 @@ class NasSyncJob : Job() {
     }
     override fun onRunJob(params: Params): Result {
         // run our job here
-        NasSyncMediaFiles()
-        return Result.SUCCESS
+        val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+
+        val wifiInfo  = wifiManager.connectionInfo
+
+        val ssid = wifiInfo.ssid
+        Log.d(TAG, "ssid:"+ssid)
+        if (ssid == "xxxx") { /* todo: change the ssid with preferenceFragment */
+            NasSyncMediaFiles()
+            return Result.SUCCESS
+        }
+        return Result.RESCHEDULE
     }
     private fun NasSyncMediaFiles(): Pair<Long, String>? {
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
@@ -187,6 +198,12 @@ class MainActivity : AppCompatActivity() {
         setSupportActionBar(toolbar)
         toast("start running")
 
+        /* request for permissions */
+        val REQUEST_READ_STORAGE_REQUEST_CODE = 112
+        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.ACCESS_COARSE_LOCATION), REQUEST_READ_STORAGE_REQUEST_CODE)
+
+        checkPermission()
+
         NasSyncJob.scheduleJob()
 
         fab.setOnClickListener { view ->
@@ -222,14 +239,20 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) textBox.text = "Error: Android SDK version doesn't meet requirement"
+        else if (checkPermission())
+            textBox.text = "Permissions granted, ready to sync photos"
+        else
+            textBox.text = "Permissions not granted, please manually grant READ_EXTERNAL_STORAGE and ACCESS_COARSE_LOCATION permission"
+    }
     private fun checkPermission(): Boolean {
         /* referred to https://github.com/googlesamples/android-RuntimePermissions */
-        val REQUEST_READ_STORAGE_REQUEST_CODE = 112
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) return false
-        if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED)
+        if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
             return true
-        ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), REQUEST_READ_STORAGE_REQUEST_CODE)
-        return true
+        return false
     }
 
     companion object {
