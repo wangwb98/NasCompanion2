@@ -12,11 +12,20 @@ import android.view.MenuItem
 import kotlinx.android.synthetic.main.activity_main.*
 import org.jetbrains.anko.*
 import android.Manifest
+import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.support.v4.app.ActivityCompat
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
+import com.evernote.android.job.Job
+import com.evernote.android.job.JobCreator
+import com.evernote.android.job.JobManager
+import com.evernote.android.job.JobRequest
 
 import jcifs.smb.NtlmPasswordAuthentication
 import jcifs.smb.SmbFile
@@ -25,16 +34,93 @@ import java.util.*
 
 import kotlinx.android.synthetic.main.content_main.*
 
+class NasCompanionApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        JobManager.create(this).addJobCreator(NasJobCreator())
+    }
+}
+
+class NasJobCreator : JobCreator {
+    override fun create(tag: String): Job? {
+        when (tag) {
+            NasSyncJob.TAG -> return NasSyncJob()
+            else -> return null
+        }
+    }
+}
+
+class NasSyncJob : Job() {
+    companion object {
+        const val TAG = "nas_file_sync"
+        fun scheduleJob() {
+            JobRequest.Builder(NasSyncJob.TAG)
+                .setExecutionWindow(1_000L, 4_000L)
+                .build()
+                .schedule()
+        }
+    }
+    override fun onRunJob(params: Params): Result {
+        // run our job here
+        listMediaFiles()
+        return Result.SUCCESS
+    }
+    private fun listMediaFiles(): Pair<Long, String>? {
+        val intent = Intent()
+        intent.action = "test"
+        intent.flags = Intent.FLAG_INCLUDE_STOPPED_PACKAGES
+
+        val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
+        val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
+        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.DISPLAY_NAME)
+        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
+        val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)
+        var cameraPair: Pair<Long, String>? = null
+
+        var cursor = this.context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            MediaStore.Files.FileColumns.DATA + " DESC")
+        if (cursor == null) return null
+        if (cursor.moveToFirst()) {
+            cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
+                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+        }
+        do {
+            Log.d(TAG, cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+            //copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+
+            this.context.sendBroadcast(intent)
+        } while(cursor.moveToNext())
+        //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+        Log.d(TAG,cursor.count.toString())
+        return cameraPair
+    }
+    private fun getBucketId(path: String): String {
+        return path.toLowerCase().hashCode().toString()
+    }
+
+}
 
 class MainActivity : AppCompatActivity() {
 
     private var mBackgroundTimer: Timer? = null
 
+    var broadCastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "test" -> toast("received broadcast")
+            }
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         textBox.movementMethod = ScrollingMovementMethod()
+
+        registerReceiver(broadCastReceiver, IntentFilter("test"))
 
         setSupportActionBar(toolbar)
         toast("start running")
@@ -43,9 +129,12 @@ class MainActivity : AppCompatActivity() {
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
             if ( checkPermission() ) {
+                NasSyncJob.scheduleJob()
+                /*
                 mBackgroundTimer?.cancel()
                 mBackgroundTimer = Timer()
                 mBackgroundTimer?.schedule(CopyToNasTask(), 0)
+                */
             }
             else
                 longToast("No permission to read storage files. Need to be granted.")
@@ -79,37 +168,10 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    private fun listMediaFiles(): Pair<Long, String>? {
-        val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
-        val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
-        val projection = arrayOf(MediaStore.Images.Media.DATA, MediaStore.Images.Media.DATE_MODIFIED, MediaStore.Images.Media.DISPLAY_NAME)
-        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
-        val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)
-        var cameraPair: Pair<Long, String>? = null
-
-        var cursor = applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            null,
-            null,
-            MediaStore.Files.FileColumns.DATA + " DESC")
-        if (cursor == null) return null
-        if (cursor.moveToFirst()) {
-            cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
-        }
-        do {
-            Log.d(TAG, cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
-            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
-        } while(cursor.moveToNext())
-        //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
-        toast(cursor.count.toString())
-
-        return cameraPair
-    }
 
     private inner class CopyToNasTask () : TimerTask() {
         override fun run() {
-            listMediaFiles()
+            //listMediaFiles()
         }
     }
 
@@ -135,9 +197,12 @@ class MainActivity : AppCompatActivity() {
         smb_path = SmbFile(server_addr +"/"+folder_name+"/"+file_name, NtlmPasswordAuthentication.ANONYMOUS)
         if (! smb_path.exists()) {
             val from_file = File(path).inputStream()
+            from_file.use { input ->
+                smb_path.outputStream.use { output ->
+                    input.copyTo(output)
+                }
+            }
             Log.d(TAG, from_file.available().toString())
-            from_file.copyTo(smb_path.outputStream)
-            from_file.close()
 
             runOnUiThread { -> textBox.append("Done\n") }
         } else {
@@ -145,10 +210,6 @@ class MainActivity : AppCompatActivity() {
         }
         return true
     }
-    private fun getBucketId(path: String): String {
-        return path.toLowerCase().hashCode().toString()
-    }
-
     companion object {
         private val TAG = "NasComp"
     }
