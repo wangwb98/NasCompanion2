@@ -79,50 +79,81 @@ class NasSyncJob : Job() {
     }
     override fun onRunJob(params: Params): Result {
         // run our job here
-        if (NasSyncMediaFiles())
+        if (nasSyncMediaFiles())
             return Result.SUCCESS
         else return Result.RESCHEDULE
     }
-    private fun NasSyncMediaFiles(): Boolean {
+
+    private fun getFileList(projection: Array<String>, target_uri:android.net.Uri): MutableList<Pair<Long, String>> {
+        /*val projection = arrayOf(MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.DATE_TAKEN)*/
+        val data_col = projection[0]
+        val date_mod_col = projection[1]
+        val date_taken_col = projection[2]
+        val fullList= mutableListOf<Pair<Long, String>>()
+        val cursor = this.context.contentResolver.query(target_uri,
+            projection,
+            null,
+            null,
+            projection[0] + " DESC")
+        if (cursor == null) return fullList
+        assert(! cursor.moveToFirst())
+        do {
+            val n_list = cursor.getString(cursor.getColumnIndex(data_col)).split("/")
+            val fileName = n_list[n_list.lastIndex-1]+"/"+n_list[n_list.lastIndex]
+            Log.d(TAG, fileName+", taken on "+cursor.getString(cursor.getColumnIndex(date_taken_col)))
+
+            fullList.add(Pair(cursor.getLong(cursor.getColumnIndex(date_mod_col)),
+                cursor.getString(cursor.getColumnIndex(data_col))))
+
+        } while(cursor.moveToNext())
+        Log.d(TAG,"media count: " + cursor.count.toString())
+        cursor.close()
+        return fullList
+    }
+    private fun nasSyncMediaFiles(): Boolean {
         val projection = arrayOf(MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.DATE_TAKEN)
 /*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
-        val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)
-        var cameraPair: Pair<Long, String>? = null*/
+        val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID) */
+        val fullList= mutableListOf<Pair<Long, String>>()
 
         var returnVal = true
 
-        val cursor = this.context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            projection,
-            null,
-            null,
-            MediaStore.Files.FileColumns.DATA + " DESC")
-        if (cursor == null) return false
-        if (cursor.moveToFirst()) {
-/*            cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))*/
+        for (i in getFileList(arrayOf(MediaStore.Images.Media.DATA,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.DATE_TAKEN), MediaStore.Images.Media.EXTERNAL_CONTENT_URI) ) {
+            fullList.add(i)
         }
-        do {
-            val n_list = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)).split("/")
-            val picName = n_list[n_list.lastIndex-1]+"/"+n_list[n_list.lastIndex]
-            Log.d(TAG, picName+", taken on "+cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
+        Log.d(TAG, "Phone media files count:" + fullList.size)
+        for (i in getFileList(arrayOf(MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.DATE_MODIFIED,
+            MediaStore.Video.Media.DATE_TAKEN), MediaStore.Video.Media.EXTERNAL_CONTENT_URI) ) {
+            fullList.add(i)
+        }
+        Log.d(TAG, "Phone media files count:" + fullList.size)
+        for (i in getFileList(arrayOf(MediaStore.Audio.Media.DATA,
+            MediaStore.Audio.Media.DATE_MODIFIED,
+            MediaStore.Audio.Media.DATE_MODIFIED), MediaStore.Audio.Media.EXTERNAL_CONTENT_URI) ) {
+            fullList.add(i)
+        }
+        Log.d(TAG, "Phone media files count:" + fullList.size)
 
-            copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
-        } while(cursor.moveToNext())
-        //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
-        Log.d(TAG,cursor.count.toString())
-        cursor.close()
+        for (i in fullList) {
+            copyToNas(i.second, i.first )
+        }
+
         return returnVal
     }
     private fun getBucketId(path: String): String {
         return path.toLowerCase().hashCode().toString()
     }
 
-    private fun copyToNas(path: String, date_taken: String): Boolean {
+    private fun copyToNas(path: String, date_taken: Long): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
 
@@ -132,7 +163,7 @@ class NasSyncJob : Job() {
         val targetSsidList = prefs.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
         val ssid  = wifiManager.connectionInfo.ssid
         var i = targetSsidList[0]
-        if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) { /* todo: change the ssid with preferenceFragment */
+        if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) {
             return false
         }
 
@@ -152,7 +183,8 @@ class NasSyncJob : Job() {
 
         var fileResult = "Done"
 
-        Log.d(TAG, "To create file " + server_addr +"/"+folder_name+"/"+file_name)
+        /*Log.d(TAG, "To create file " + server_addr +"/"+folder_name+"/"+file_name)*/
+
 /*      test to write local file.
         val to_file = openFileOutput("test.test", MODE_PRIVATE)
         from_file.copyTo(to_file)*/
@@ -203,7 +235,7 @@ class MainActivity : AppCompatActivity() {
         override fun onReceive(context: Context?, intent: Intent?) {
             when (intent?.action) {
                 "com.asr.nascompanion.updateStatus" ->  {
-                    Log.d(TAG, "received Broadcast for: "+intent.getStringExtra("msg"))
+                    //Log.d(TAG, "received Broadcast for: "+intent.getStringExtra("msg"))
                     runOnUiThread { -> textBox.append(intent.getStringExtra("msg"))}
                 }
             }
