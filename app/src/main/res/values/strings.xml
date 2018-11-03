@@ -74,4 +74,12 @@
     <string name="pref_ringtone_silent">Silent</string>
 
     <string name="pref_title_vibrate">Vibrate</string>
+    <string name="pref_title_server_url">Server URL</string>
+    <string name="pref_default_server_url">smb://192.168.0.2/public</string>
+    <string name="pref_title_server_user">Server Username</string>
+    <string name="pref_default_server_user">anonymous</string>
+    <string name="pref_title_server_pass">Server password</string>
+    <string name="pref_default_server_pass">anonymous</string>
+    <string name="pref_title_wifi_ssid">Supported WIFI ssid list (separated by , )</string>
+    <string name="pref_default_wifi_ssid">testwifiname</string>
 </resources>

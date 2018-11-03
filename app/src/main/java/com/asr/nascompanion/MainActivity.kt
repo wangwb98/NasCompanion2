@@ -1,7 +1,6 @@
 package com.asr.nascompanion
 
 import android.os.Bundle
-import android.os.Environment
 import android.provider.MediaStore
 import android.support.design.widget.Snackbar
 import android.support.v4.content.ContextCompat
@@ -18,9 +17,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.preference.PreferenceManager
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.LocalBroadcastManager
 import android.text.method.ScrollingMovementMethod
@@ -87,8 +86,7 @@ class NasSyncJob : Job() {
     private fun NasSyncMediaFiles(): Boolean {
         val projection = arrayOf(MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.DATE_TAKEN,
-            MediaStore.Images.Media.SIZE)
+            MediaStore.Images.Media.DATE_TAKEN)
 /*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
@@ -96,9 +94,6 @@ class NasSyncJob : Job() {
         var cameraPair: Pair<Long, String>? = null*/
 
         var returnVal = true
-
-        val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val targetSsidList = arrayOf("aaaa", "bbbb")
 
         val cursor = this.context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
@@ -115,31 +110,42 @@ class NasSyncJob : Job() {
             val picName = n_list[n_list.lastIndex-1]+"/"+n_list[n_list.lastIndex]
             Log.d(TAG, picName+", taken on "+cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
 
-            val ssid  = wifiManager.connectionInfo.ssid
-            Log.d(TAG, "ssid:("+ssid.substring(1,ssid.lastIndex)+")")
-            if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) { /* todo: change the ssid with preferenceFragment */
-                returnVal = false
-                break
-            }
             copyToNas(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.SIZE))
-            )
+                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATE_TAKEN)))
         } while(cursor.moveToNext())
-        cursor.close()
         //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
         Log.d(TAG,cursor.count.toString())
+        cursor.close()
         return returnVal
     }
     private fun getBucketId(path: String): String {
         return path.toLowerCase().hashCode().toString()
     }
 
-    private fun copyToNas(path: String, date_taken: String, fileSize: String): Boolean {
+    private fun copyToNas(path: String, date_taken: String): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
 
-        val server_addr = "smb://192.168.0.2/public/"+Build.MODEL
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
+
+        val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
+        val targetSsidList = prefs.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
+        val ssid  = wifiManager.connectionInfo.ssid
+        var i = targetSsidList[0]
+        if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) { /* todo: change the ssid with preferenceFragment */
+            return false
+        }
+
+        var smb_auth = NtlmPasswordAuthentication.ANONYMOUS
+        if ("anonymous" != prefs.getString("server_user", this.context.getString(R.string.pref_default_server_user))) {
+            smb_auth = NtlmPasswordAuthentication(
+                null,
+                prefs.getString("server_user", this.context.getString(R.string.pref_default_server_user)),
+                prefs.getString("server_pass", this.context.getString(R.string.pref_default_server_pass)))
+        }
+
+
+        val server_addr = prefs.getString("server_url", this.context.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
         val n_list = path.split("/")
         val folder_name = n_list[n_list.lastIndex-1]
         val file_name = n_list[n_list.lastIndex]
@@ -155,27 +161,28 @@ class NasSyncJob : Job() {
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
 
         try {
-            var smb_path = SmbFile(server_addr, NtlmPasswordAuthentication.ANONYMOUS)
+            var smb_path = SmbFile(server_addr, smb_auth)
             if (!smb_path.exists()) {
                 smb_path.mkdir()
             }
-            smb_path = SmbFile(server_addr + "/" + folder_name, NtlmPasswordAuthentication.ANONYMOUS)
+            smb_path = SmbFile(server_addr + "/" + folder_name, smb_auth)
             if (!smb_path.exists()) {
                 smb_path.mkdir()
             }
-            smb_path = SmbFile(server_addr + "/" + folder_name + "/" + file_name, NtlmPasswordAuthentication.ANONYMOUS)
+            smb_path = SmbFile(server_addr + "/" + folder_name + "/" + file_name, smb_auth)
             /* check if file exists and size is same as original file */
-            if (!smb_path.exists() || fileSize.toLong() != smb_path.length()) {
+            val fileSize = File(path).length()
+            if (!smb_path.exists() || fileSize != smb_path.length()) {
                 if (smb_path.exists()) smb_path.delete()
-                val from_file = File(path).inputStream()
-                from_file.use{input ->
+                val fromFile = File(path).inputStream()
+                fromFile.use{ input ->
                     smb_path.outputStream.use {output ->
                         input.copyTo(output)
                     }
                 }
                 smb_path.lastModified = date_taken.toLong() /* this must be done after outputstream.close() */
-                Log.d(TAG, "Created new file time (taken) is: " +smb_path.lastModified().toString())
-                Log.d(TAG, "file size compare (taken) is: " +fileSize + " vs. "+smb_path.contentLength)
+                /*Log.d(TAG, "Created new file time (taken) is: " +smb_path.lastModified().toString()) */
+                Log.d(TAG, "file size compare (taken) is: "+path+":" + fileSize + " vs. "+smb_path.contentLength + "," + if (fileSize.toInt() == smb_path.contentLength) "Same" else "Diff" )
             } else {
                 fileResult = "Already exists"
             }
