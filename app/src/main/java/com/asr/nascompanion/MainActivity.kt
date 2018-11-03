@@ -5,7 +5,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.support.design.widget.Snackbar
 import android.support.v4.content.ContextCompat
-import android.support.v7.app.AppCompatActivity;
+import android.support.v7.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
 
@@ -92,23 +92,23 @@ class NasSyncJob : Job() {
 /*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
-        val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)*/
-        var cameraPair: Pair<Long, String>? = null
+        val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID)
+        var cameraPair: Pair<Long, String>? = null*/
 
         var returnVal = true
 
         val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val targetSsidList = arrayOf("aaaa", "bbbb")
 
-        var cursor = this.context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        val cursor = this.context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             projection,
             null,
             null,
             MediaStore.Files.FileColumns.DATA + " DESC")
         if (cursor == null) return false
         if (cursor.moveToFirst()) {
-            cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
-                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
+/*            cameraPair = Pair(cursor.getLong(cursor.getColumnIndex(MediaStore.Images.Media.DATE_MODIFIED)),
+                cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))*/
         }
         do {
             val n_list = cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)).split("/")
@@ -126,6 +126,7 @@ class NasSyncJob : Job() {
                 cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.SIZE))
             )
         } while(cursor.moveToNext())
+        cursor.close()
         //toast(cursor.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA)))
         Log.d(TAG,cursor.count.toString())
         return returnVal
@@ -248,7 +249,11 @@ class MainActivity : AppCompatActivity() {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
-            R.id.action_settings -> true
+            R.id.action_settings -> {
+                val i = Intent(this, SettingsActivity::class.java)
+                startActivity(i)
+                true
+            }
             else -> super.onOptionsItemSelected(item)
         }
     }
