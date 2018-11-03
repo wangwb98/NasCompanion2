@@ -53,20 +53,23 @@ class NasJobCreator : JobCreator {
 class NasSyncJob : Job() {
     companion object {
         const val TAG = "nas_file_sync"
-        fun scheduleJob() {
-            val allRequests = JobManager.instance().getAllJobRequestsForTag(NasSyncJob.TAG)
+        fun scheduleJob(interval : Int) {
+            /*val allRequests = JobManager.instance().getAllJobRequestsForTag(NasSyncJob.TAG)
             if (!allRequests.isEmpty()) {
                 Log.d(TAG, "already running jobs, skip this time's request")
                 return
-            }
-
-            JobRequest.Builder(NasSyncJob.TAG)
-                .setUpdateCurrent(true)
-                .setRequiredNetworkType(JobRequest.NetworkType.UNMETERED)
-                .setRequirementsEnforced(true)
-                .setPeriodic(TimeUnit.HOURS.toMillis(3), TimeUnit.HOURS.toMillis(3)) // every 3 hours, but wait 6 hours before it runs again
-                .build()
-                .schedule()
+            }*/
+            Log.d(TAG, "Sync interval set to "+interval.toString())
+            if (interval < 0)
+                JobManager.instance().cancelAllForTag(NasSyncJob.TAG)
+            else
+                JobRequest.Builder(NasSyncJob.TAG)
+                    .setUpdateCurrent(true)
+                    .setRequiredNetworkType(JobRequest.NetworkType.UNMETERED)
+                    .setRequirementsEnforced(true)
+                    .setPeriodic(TimeUnit.MINUTES.toMillis(interval.toLong()), TimeUnit.MINUTES.toMillis(5.toLong())) // every 180 minutes hours, but wait 5 minutes hours before runs again
+                    .build()
+                    .schedule()
         }
         fun runJobImmediatelly() {
             // JobManager.instance().cancelAllForTag(NasSyncJob.TAG)
@@ -113,9 +116,6 @@ class NasSyncJob : Job() {
         return fullList
     }
     private fun nasSyncMediaFiles(): Boolean {
-        val projection = arrayOf(MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.DATE_TAKEN)
 /*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
@@ -162,7 +162,6 @@ class NasSyncJob : Job() {
         val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val targetSsidList = prefs.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
         val ssid  = wifiManager.connectionInfo.ssid
-        var i = targetSsidList[0]
         if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) {
             return false
         }
@@ -258,7 +257,9 @@ class MainActivity : AppCompatActivity() {
 
         checkPermission()
 
-        NasSyncJob.scheduleJob()
+        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+
+        NasSyncJob.scheduleJob(prefs.getString("sync_frequency", "180").toInt())
 
         fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)

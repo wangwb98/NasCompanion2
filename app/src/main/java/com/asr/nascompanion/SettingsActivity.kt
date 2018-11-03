@@ -15,6 +15,7 @@ import android.preference.PreferenceFragment
 import android.preference.PreferenceManager
 import android.preference.RingtonePreference
 import android.text.TextUtils
+import android.util.Log
 import android.view.MenuItem
 
 /**
@@ -84,6 +85,9 @@ class SettingsActivity : AppCompatPreferenceActivity() {
             // guidelines.
             bindPreferenceSummaryToValue(findPreference("example_text"))
             bindPreferenceSummaryToValue(findPreference("example_list"))
+            bindPreferenceSummaryToValue(findPreference("server_url"))
+            bindPreferenceSummaryToValue(findPreference("server_user"))
+            bindPreferenceSummaryToValue(findPreference("wifi_ssid"))
         }
 
         override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -174,6 +178,11 @@ class SettingsActivity : AppCompatPreferenceActivity() {
                     else
                         null
                 )
+                if (index >= 0) {
+                    if (preference.key == "sync_frequency") {
+                        NasSyncJob.scheduleJob(listPreference.entryValues[index].toString().toInt())
+                    }
+                }
 
             } else if (preference is RingtonePreference) {
                 // For ringtone preferences, look up the correct display value
