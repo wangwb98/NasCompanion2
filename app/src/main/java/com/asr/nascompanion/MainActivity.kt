@@ -32,6 +32,9 @@ import jcifs.smb.*
 
 import kotlinx.android.synthetic.main.content_main.*
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.nio.file.attribute.BasicFileAttributes
 import java.util.concurrent.TimeUnit
 
 class NasCompanionApp : Application() {
@@ -211,16 +214,27 @@ class NasSyncJob : Job() {
                         input.copyTo(output)
                     }
                 }
-                smb_path.lastModified = date_taken.toLong() /* this must be done after outputstream.close() */
-                /*Log.d(TAG, "Created new file time (taken) is: " +smb_path.lastModified().toString()) */
-                Log.d(TAG, "file size compare (taken) is: "+path+":" + fileSize + " vs. "+smb_path.contentLength + "," + if (fileSize.toInt() == smb_path.contentLength) "Same" else "Diff" )
+                val fileModifiedTime = File(path).lastModified()
+                smb_path.lastModified = fileModifiedTime /* this must be done after outputstream.close() */
+
+                /*Log.d(TAG, "Created new file time (taken) is: " +smb_path.lastModified().toString())
+                Log.d(TAG, "file mod time compare (taken) is: "+path+":" + fileModifiedTime + " vs. "+date_taken.toLong()+ "," + if (fileModifiedTime.toLong() == date_taken.toLong().toLong()*1000) "Same" else "Diff" )
+                Log.d(TAG, "file size compare (taken) is: "+path+":" + fileSize + " vs. "+smb_path.contentLength + "," + if (fileSize.toInt() == smb_path.contentLength) "Same" else "Diff" )*/
             } else {
                 fileResult = "Already exists"
             }
-        } catch (e: SmbException) {
-            Log.d(TAG, "Samba connection met issue:"+e.localizedMessage)
-            fileResult = "Network down"
-            Thread.sleep(2000)
+        } catch (e: Exception) {
+            when (e) {
+                is SmbException -> {
+                    Log.d(TAG, "Samba connection met issue:"+e.localizedMessage)
+                    fileResult = "Network down"
+                }
+                is java.io.FileNotFoundException -> {
+                    Log.d(TAG, "Local file not found:"+e.localizedMessage)
+                    fileResult = "Local file not found"
+                }
+                else -> throw e
+            }
         }
         intent.putExtra("msg", fileResult)
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
