@@ -222,6 +222,10 @@ class NasSyncJob : Job() {
                 Log.d(TAG, "file size compare (taken) is: "+path+":" + fileSize + " vs. "+smb_path.contentLength + "," + if (fileSize.toInt() == smb_path.contentLength) "Same" else "Diff" )*/
             } else {
                 fileResult = "Already exists"
+                /* use this if want to force update modified time of smb existing files.
+                val fileModifiedTime = File(path).lastModified()
+                smb_path.lastModified = fileModifiedTime */
+
             }
         } catch (e: Exception) {
             when (e) {
