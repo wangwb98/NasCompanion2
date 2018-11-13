@@ -86,20 +86,16 @@ class NasSyncJob : Job() {
         }
     }
     override fun onRunJob(params: Params): Result {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
-        val prefEditor = prefs.edit()
-        if ( prefEditor!= null) {   // save the RecentPic Index.
-            val current = System.currentTimeMillis()
-            prefEditor.putLong("LastSyncStartDateLong", current)
-            prefEditor.apply()
-        }
+        var prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
+        prefs.edit()
+            .putLong("LastSyncStartDateLong", System.currentTimeMillis())
+            .apply()
         // run our job here
         val result = nasSyncMediaFiles()
-        if ( prefEditor!= null) {   // save the RecentPic Index.
-            val current = System.currentTimeMillis()
-            prefEditor.putLong("LastSyncEndDateLong", current)
-            prefEditor.apply()
-        }
+
+        prefs.edit()
+            .putLong("LastSyncEndDateLong", System.currentTimeMillis())
+            .apply()
 
         if (result)
             return Result.SUCCESS
@@ -307,7 +303,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         textBox.text = "Last Sync Start Time: "+ convertLongToTime(prefs.getLong("LastSyncStartDatelong", 0)) +
-                "\nLast Sync End Time: "+ convertLongToTime(prefs.getLong("LastSyncEndDateLong",0))
+                "\nLast Sync End Time: "+ convertLongToTime(prefs.getLong("LastSyncEndDateLong",0)) +"\n"
     }
 
     private fun convertLongToTime(time: Long): String {
@@ -343,9 +339,9 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.LOLLIPOP) textBox.text = "Error: Android SDK version doesn't meet requirement"
         else if (checkPermission())
-            textBox.text = "Permissions granted, ready to sync photos"
+            textBox.append("Permissions granted, ready to sync photos\n")
         else
-            textBox.text = "Permissions not granted, please manually grant READ_EXTERNAL_STORAGE and ACCESS_COARSE_LOCATION permission"
+            textBox.append("Permissions not granted, please manually grant READ_EXTERNAL_STORAGE and ACCESS_COARSE_LOCATION permission\n")
     }
     private fun checkPermission(): Boolean {
         /* referred to https://github.com/googlesamples/android-RuntimePermissions */
