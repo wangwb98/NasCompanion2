@@ -35,6 +35,8 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributes
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.TimeUnit
 
 class NasCompanionApp : Application() {
@@ -84,8 +86,22 @@ class NasSyncJob : Job() {
         }
     }
     override fun onRunJob(params: Params): Result {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
+        val prefEditor = prefs.edit()
+        if ( prefEditor!= null) {   // save the RecentPic Index.
+            val current = System.currentTimeMillis()
+            prefEditor.putLong("LastSyncStartDateLong", current)
+            prefEditor.apply()
+        }
         // run our job here
-        if (nasSyncMediaFiles())
+        val result = nasSyncMediaFiles()
+        if ( prefEditor!= null) {   // save the RecentPic Index.
+            val current = System.currentTimeMillis()
+            prefEditor.putLong("LastSyncEndDateLong", current)
+            prefEditor.apply()
+        }
+
+        if (result)
             return Result.SUCCESS
         else return Result.RESCHEDULE
     }
@@ -289,8 +305,16 @@ class MainActivity : AppCompatActivity() {
                 longToast("No permission to read storage files. Need to be granted.")
             //applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         }
+
+        textBox.text = "Last Sync Start Time: "+ convertLongToTime(prefs.getLong("LastSyncStartDatelong", 0)) +
+                "\nLast Sync End Time: "+ convertLongToTime(prefs.getLong("LastSyncEndDateLong",0))
     }
 
+    private fun convertLongToTime(time: Long): String {
+        val date = Date(time)
+        val format = SimpleDateFormat("yyyy.MM.dd HH:mm")
+        return format.format(date)
+    }
     override fun onDestroy() {
         super.onDestroy()
         LocalBroadcastManager.getInstance(applicationContext).unregisterReceiver((broadCastReceiver))
