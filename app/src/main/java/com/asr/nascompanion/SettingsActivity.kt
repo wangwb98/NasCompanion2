@@ -180,7 +180,14 @@ class SettingsActivity : AppCompatPreferenceActivity() {
                 )
                 if (index >= 0) {
                     if (preference.key == "sync_frequency") {
-                        NasSyncJob.scheduleJob(listPreference.entryValues[index].toString().toInt())
+                        val prefs = PreferenceManager.getDefaultSharedPreferences(preference.context)
+                        val server_user = prefs.getString("server_user", preference.context.getString(R.string.pref_default_server_user))
+                        val server_pass = prefs.getString("server_pass", preference.context.getString(R.string.pref_default_server_pass))
+                        val server_addr = prefs.getString("server_url", preference.context.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+                        val targetSsidList = prefs.getString("wifi_ssid", preference.context.getString(R.string.pref_default_wifi_ssid))
+
+                        NasSyncJob.scheduleJob(interval = listPreference.entryValues[index].toString().toInt(), user = server_user,
+                            pass = server_pass, addr = server_addr, ssidList = targetSsidList)
                     }
                 }
 

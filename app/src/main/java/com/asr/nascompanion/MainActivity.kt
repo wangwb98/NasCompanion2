@@ -19,6 +19,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.wifi.WifiManager
 import android.os.Build
+import android.os.PersistableBundle
 import android.preference.PreferenceManager
 import android.support.v4.app.ActivityCompat
 import android.support.v4.content.LocalBroadcastManager
@@ -28,6 +29,7 @@ import com.evernote.android.job.Job
 import com.evernote.android.job.JobCreator
 import com.evernote.android.job.JobManager
 import com.evernote.android.job.JobRequest
+import com.evernote.android.job.util.support.PersistableBundleCompat
 import jcifs.smb.*
 
 import kotlinx.android.synthetic.main.content_main.*
@@ -58,28 +60,43 @@ class NasJobCreator : JobCreator {
 class NasSyncJob : Job() {
     companion object {
         const val TAG = "nas_file_sync"
-        fun scheduleJob(interval : Int) {
+
+        fun scheduleJob(interval: Int, user: String, pass: String, addr: String, ssidList: String) {
             /*val allRequests = JobManager.instance().getAllJobRequestsForTag(NasSyncJob.TAG)
             if (!allRequests.isEmpty()) {
                 Log.d(TAG, "already running jobs, skip this time's request")
                 return
             }*/
             Log.d(TAG, "Sync interval set to "+interval.toString())
+            val extras = PersistableBundleCompat()
+            extras.putString("server_user", user)
+            extras.putString("server_pass", pass)
+            extras.putString("server_url", addr)
+            extras.putString("wifi_ssid", ssidList)
+
             if (interval < 0)
                 JobManager.instance().cancelAllForTag(NasSyncJob.TAG)
             else
                 JobRequest.Builder(NasSyncJob.TAG)
                     .setUpdateCurrent(true)
+                    .setExtras(extras)
                     .setRequiredNetworkType(JobRequest.NetworkType.UNMETERED)
                     .setRequirementsEnforced(true)
                     .setPeriodic(TimeUnit.MINUTES.toMillis(interval.toLong()), TimeUnit.MINUTES.toMillis(5.toLong())) // every 180 minutes hours, but wait 5 minutes hours before runs again
                     .build()
                     .schedule()
         }
-        fun runJobImmediatelly() {
+        fun runJobImmediatelly(user: String, pass: String, addr: String, ssidList: String) {
             // JobManager.instance().cancelAllForTag(NasSyncJob.TAG)
+            val extras = PersistableBundleCompat()
+            extras.putString("server_user", user)
+            extras.putString("server_pass", pass)
+            extras.putString("server_url", addr)
+            extras.putString("wifi_ssid", ssidList)
+
             JobRequest.Builder(NasSyncJob.TAG)
                 .setUpdateCurrent(true)
+                .setExtras(extras)
                 .startNow()
                 .build()
                 .schedule()
@@ -91,7 +108,7 @@ class NasSyncJob : Job() {
             .putLong("LastSyncStartDateLong", System.currentTimeMillis())
             .apply()
         // run our job here
-        val result = nasSyncMediaFiles()
+        val result = nasSyncMediaFiles(params)
 
         prefs.edit()
             .putLong("LastSyncEndDateLong", System.currentTimeMillis())
@@ -130,7 +147,7 @@ class NasSyncJob : Job() {
         cursor.close()
         return fullList
     }
-    private fun nasSyncMediaFiles(): Boolean {
+    private fun nasSyncMediaFiles(params: Params): Boolean {
 /*        val selection = MediaStore.Images.Media.BUCKET_ID + " = ?"
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
@@ -159,7 +176,7 @@ class NasSyncJob : Job() {
         Log.d(TAG, "Phone media files count:" + fullList.size)
 
         for (i in fullList) {
-            copyToNas(i.second, i.first )
+            copyToNas(i.second, i.first, params )
         }
 
         return returnVal
@@ -168,29 +185,30 @@ class NasSyncJob : Job() {
         return path.toLowerCase().hashCode().toString()
     }
 
-    private fun copyToNas(path: String, date_taken: Long): Boolean {
+    private fun copyToNas(path: String, date_taken: Long, params: Params): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
+        getParams().transientExtras
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
 
         val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val targetSsidList = prefs.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
+        //val targetSsidList = prefs.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
+        val targetSsidList = params.extras.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
         val ssid  = wifiManager.connectionInfo.ssid
         if (ssid.substring(1,ssid.lastIndex) !in targetSsidList) {
             return false
         }
 
         var smb_auth = NtlmPasswordAuthentication.ANONYMOUS
-        if ("anonymous" != prefs.getString("server_user", this.context.getString(R.string.pref_default_server_user))) {
+        if ("anonymous" != params.extras.getString("server_user", this.context.getString(R.string.pref_default_server_user))) {
             smb_auth = NtlmPasswordAuthentication(
                 null,
-                prefs.getString("server_user", this.context.getString(R.string.pref_default_server_user)),
-                prefs.getString("server_pass", this.context.getString(R.string.pref_default_server_pass)))
+                params.extras.getString("server_user", this.context.getString(R.string.pref_default_server_user)),
+                params.extras.getString("server_pass", this.context.getString(R.string.pref_default_server_pass)))
         }
 
-
-        val server_addr = prefs.getString("server_url", this.context.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+        val server_addr = params.extras.getString("server_url", this.context.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
         val n_list = path.split("/")
         val folder_name = n_list[n_list.lastIndex-1]
         val file_name = n_list[n_list.lastIndex]
@@ -288,24 +306,41 @@ class MainActivity : AppCompatActivity() {
         checkPermission()
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        val server_user = prefs.getString("server_user", applicationContext.getString(R.string.pref_default_server_user))
+        val server_pass = prefs.getString("server_pass", applicationContext.getString(R.string.pref_default_server_pass))
+        val server_addr = prefs.getString("server_url", applicationContext.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+        val targetSsidList = prefs.getString("wifi_ssid", applicationContext.getString(R.string.pref_default_wifi_ssid))
 
-        NasSyncJob.scheduleJob(prefs.getString("sync_frequency", "180").toInt())
+        NasSyncJob.scheduleJob(interval = prefs.getString("sync_frequency", "180").toInt(), user = server_user,
+            pass = server_pass, addr = server_addr, ssidList = targetSsidList)
 
         fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
             if ( checkPermission() ) {
-                NasSyncJob.runJobImmediatelly()
+                val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+                val server_user = prefs.getString("server_user", applicationContext.getString(R.string.pref_default_server_user))
+                val server_pass = prefs.getString("server_pass", applicationContext.getString(R.string.pref_default_server_pass))
+                val server_addr = prefs.getString("server_url", applicationContext.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+                val targetSsidList = prefs.getString("wifi_ssid", applicationContext.getString(R.string.pref_default_wifi_ssid))
+                NasSyncJob.runJobImmediatelly(user = server_user,
+                    pass = server_pass, addr = server_addr, ssidList = targetSsidList)
             }
             else
                 longToast("No permission to read storage files. Need to be granted.")
             //applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         }
 
-        textBox.text = "Last Sync Start Time: "+ convertLongToTime(prefs.getLong("LastSyncStartDatelong", 0)) +
-                "\nLast Sync End Time: "+ convertLongToTime(prefs.getLong("LastSyncEndDateLong",0)) +"\n"
     }
 
+    override fun onResume() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        val t1 = prefs.getLong("LastSyncStartDatelong", 0)
+        val t2 = prefs.getLong("LastSyncEndDatelong", 0)
+        textBox.text = "Last Sync Start Time: "+ convertLongToTime(prefs.getLong("LastSyncStartDatelong", 0)) +
+                "\nLast Sync End Time: "+ convertLongToTime(prefs.getLong("LastSyncEndDateLong",0)) +"\n"
+        super.onResume()
+    }
     private fun convertLongToTime(time: Long): String {
         val date = Date(time)
         val format = SimpleDateFormat("yyyy.MM.dd HH:mm")
