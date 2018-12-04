@@ -10,14 +10,23 @@
         tools:context=".MainActivity">
 
     <TextView
-            android:layout_width="wrap_content"
+            android:text="TextView"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            android:gravity="center"
+            android:id="@+id/textTime" android:layout_margin="32dp"/>
+    <TextView
+            android:layout_width="0dp"
+            android:layout_height="0dp"
             android:id="@+id/textBox"
             android:text="Hello World!"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            android:gravity="bottom"/>
+            app:layout_constraintTop_toBottomOf="@+id/textTime"
+            android:gravity="bottom" android:layout_margin="32dp"/>
 
 </android.support.constraint.ConstraintLayout>

@@ -33,6 +33,7 @@ import com.evernote.android.job.util.support.PersistableBundleCompat
 import jcifs.smb.*
 
 import kotlinx.android.synthetic.main.content_main.*
+import net.grandcentrix.tray.AppPreferences
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -103,17 +104,28 @@ class NasSyncJob : Job() {
         }
     }
     override fun onRunJob(params: Params): Result {
+
+        val intent = Intent()
+        intent.action = "com.asr.nascompanion.updateTime"
+        intent.putExtra("startTime", System.currentTimeMillis())
+        LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
+
+/*
         var prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
         prefs.edit()
             .putLong("LastSyncStartDateLong", System.currentTimeMillis())
-            .apply()
+            .apply()*/
         // run our job here
         val result = nasSyncMediaFiles(params)
 
+        intent.action = "com.asr.nascompanion.updateTime"
+        intent.putExtra("endTime", System.currentTimeMillis())
+        LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
+/*
         prefs.edit()
             .putLong("LastSyncEndDateLong", System.currentTimeMillis())
             .apply()
-
+*/
         if (result)
             return Result.SUCCESS
         else return Result.RESCHEDULE
@@ -188,7 +200,6 @@ class NasSyncJob : Job() {
     private fun copyToNas(path: String, date_taken: Long, params: Params): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
-        getParams().transientExtras
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
 
@@ -285,6 +296,25 @@ class MainActivity : AppCompatActivity() {
                     //Log.d(TAG, "received Broadcast for: "+intent.getStringExtra("msg"))
                     runOnUiThread { -> textBox.append(intent.getStringExtra("msg"))}
                 }
+                "com.asr.nascompanion.updateTime" -> {
+                    var sTime = intent.getLongExtra("startTime", 0)
+                    var eTime = intent.getLongExtra("endTime", 0)
+                    val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+                    if (sTime == 0L)
+                        sTime = prefs.getLong("LastSyncStartDateLong", 0)
+                    if (eTime == 0L)
+                        eTime = prefs.getLong("LastSyncEndDateLong",0 )
+                    prefs.edit()
+                        .putLong("LastSyncEndDateLong", eTime)
+                        .putLong("LastSyncStartDateLong", sTime)
+                        .apply()
+
+                    runOnUiThread { ->
+                        val mStart = convertLongToTime(prefs.getLong("LastSyncStartDateLong",0))
+                        val mEnd = convertLongToTime(prefs.getLong("LastSyncEndDateLong",0))
+                        textTime.text = "Last Sync: "+ mStart + " -> "+ mEnd
+                    }
+                }
             }
         }
     }
@@ -294,7 +324,10 @@ class MainActivity : AppCompatActivity() {
 
         textBox.movementMethod = ScrollingMovementMethod()
 
-        LocalBroadcastManager.getInstance(applicationContext).registerReceiver(broadCastReceiver, IntentFilter("com.asr.nascompanion.updateStatus"))
+        val filter = IntentFilter()
+        filter.addAction("com.asr.nascompanion.updateStatus")
+        filter.addAction("com.asr.nascompanion.updateTime")
+        LocalBroadcastManager.getInstance(applicationContext).registerReceiver(broadCastReceiver, filter)
 
         setSupportActionBar(toolbar)
         toast("start running")
@@ -334,12 +367,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onResume() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
-        val t1 = prefs.getLong("LastSyncStartDatelong", 0)
-        val t2 = prefs.getLong("LastSyncEndDatelong", 0)
-        textBox.text = "Last Sync Start Time: "+ convertLongToTime(prefs.getLong("LastSyncStartDatelong", 0)) +
-                "\nLast Sync End Time: "+ convertLongToTime(prefs.getLong("LastSyncEndDateLong",0)) +"\n"
         super.onResume()
+        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+
+        val mStart = convertLongToTime(prefs.getLong("LastSyncStartDateLong",0))
+        val mEnd = convertLongToTime(prefs.getLong("LastSyncEndDateLong",0))
+        textTime.text = "Last Sync: "+ mStart + " -> "+ mEnd
     }
     private fun convertLongToTime(time: Long): String {
         val date = Date(time)
