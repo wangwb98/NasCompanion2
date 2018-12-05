@@ -17,6 +17,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PersistableBundle
@@ -60,7 +61,7 @@ class NasJobCreator : JobCreator {
 
 class NasSyncJob : Job() {
     companion object {
-        const val TAG = "nas_file_sync"
+        const val TAG = "NasCompJob"
 
         fun scheduleJob(interval: Int, user: String, pass: String, addr: String, ssidList: String) {
             /*val allRequests = JobManager.instance().getAllJobRequestsForTag(NasSyncJob.TAG)
@@ -68,7 +69,7 @@ class NasSyncJob : Job() {
                 Log.d(TAG, "already running jobs, skip this time's request")
                 return
             }*/
-            Log.d(TAG, "Sync interval set to "+interval.toString())
+            Log.d(TAG, "scheduleJob: Sync interval set to "+interval.toString())
             val extras = PersistableBundleCompat()
             extras.putString("server_user", user)
             extras.putString("server_pass", pass)
@@ -89,6 +90,7 @@ class NasSyncJob : Job() {
         }
         fun runJobImmediatelly(user: String, pass: String, addr: String, ssidList: String) {
             // JobManager.instance().cancelAllForTag(NasSyncJob.TAG)
+            Log.d(TAG, "runJobImmediatelly: start now.")
             val extras = PersistableBundleCompat()
             extras.putString("server_user", user)
             extras.putString("server_pass", pass)
@@ -116,7 +118,9 @@ class NasSyncJob : Job() {
             .putLong("LastSyncStartDateLong", System.currentTimeMillis())
             .apply()*/
         // run our job here
+        Log.d(TAG, "onRunJob: nasSyncMediaFiles starts. ")
         val result = nasSyncMediaFiles(params)
+        Log.d(TAG, "onRunJob: nasSyncMediaFiles done. ")
 
         intent.action = "com.asr.nascompanion.updateTime"
         intent.putExtra("endTime", System.currentTimeMillis())
@@ -200,8 +204,6 @@ class NasSyncJob : Job() {
     private fun copyToNas(path: String, date_taken: Long, params: Params): Boolean {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
-
-        val prefs = PreferenceManager.getDefaultSharedPreferences(this.context)
 
         val wifiManager:WifiManager = this.context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         //val targetSsidList = prefs.getString("wifi_ssid", this.context.getString(R.string.pref_default_wifi_ssid)).split(",").toTypedArray()
@@ -318,17 +320,48 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    var NetworkConnectChangedReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            Log.d(TAG, "NetConn changed: received intent " + intent?.action.toString())
+            when (intent?.action) {
+                WifiManager.WIFI_STATE_CHANGED_ACTION ->  {
+                    //Log.d(TAG, "received Broadcast for: "+intent.getStringExtra("msg"))
+                    val wifiState = intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, 0)
+                    Log.d(TAG, "WIFI state changed: " +
+                        when (wifiState) {
+                            WifiManager.WIFI_STATE_DISABLED -> "WIFI disabled"
+                            WifiManager.WIFI_STATE_ENABLED -> "WIFI enabled"
+                            else -> "Other state"
+                        }
+                    )
+                }
+                WifiManager.NETWORK_STATE_CHANGED_ACTION -> {
+                    Log.d(TAG, "Network state changed!")
+                }
+                ConnectivityManager.CONNECTIVITY_ACTION -> {
+                    Log.d(TAG, "connectivity state changed!")
+
+                }
+            }
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
         textBox.movementMethod = ScrollingMovementMethod()
 
-        val filter = IntentFilter()
-        filter.addAction("com.asr.nascompanion.updateStatus")
-        filter.addAction("com.asr.nascompanion.updateTime")
-        LocalBroadcastManager.getInstance(applicationContext).registerReceiver(broadCastReceiver, filter)
+        val localFilter = IntentFilter()
+        localFilter.addAction("com.asr.nascompanion.updateStatus")
+        localFilter.addAction("com.asr.nascompanion.updateTime")
+        LocalBroadcastManager.getInstance(applicationContext).registerReceiver(broadCastReceiver, localFilter)
 
+        val filter = IntentFilter()
+        filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
+        filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
+        filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION)
+        registerReceiver(NetworkConnectChangedReceiver, filter)
         setSupportActionBar(toolbar)
         toast("start running")
 
