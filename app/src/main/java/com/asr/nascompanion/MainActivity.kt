@@ -35,13 +35,14 @@ import jcifs.smb.*
 
 import kotlinx.android.synthetic.main.content_main.*
 import net.grandcentrix.tray.AppPreferences
-import java.io.File
+import java.io.*
 import java.nio.file.Files
 import java.nio.file.Paths
 import java.nio.file.attribute.BasicFileAttributes
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 class NasCompanionApp : Application() {
     override fun onCreate() {
@@ -153,7 +154,7 @@ class NasSyncJob : Job() {
         do {
             val n_list = cursor.getString(cursor.getColumnIndex(data_col)).split("/")
             val fileName = n_list[n_list.lastIndex-1]+"/"+n_list[n_list.lastIndex]
-            Log.d(TAG, fileName+", taken on "+cursor.getString(cursor.getColumnIndex(date_taken_col)))
+            // Log.d(TAG, fileName+", taken on "+cursor.getString(cursor.getColumnIndex(date_taken_col)))
 
             fullList.add(Pair(cursor.getLong(cursor.getColumnIndex(date_mod_col)),
                 cursor.getString(cursor.getColumnIndex(data_col))))
@@ -168,6 +169,8 @@ class NasSyncJob : Job() {
         val CAMERA_IMAGE_BUCKET_NAME = Environment.getExternalStorageDirectory().toString() + "/DCIM/Camera"
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
         val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID) */
+        val file = File(context.filesDir, "medialist.bin")
+
         val fullList= mutableListOf<Pair<Long, String>>()
 
         var returnVal = true
@@ -191,8 +194,34 @@ class NasSyncJob : Job() {
         }
         Log.d(TAG, "Phone media files count:" + fullList.size)
 
+        val origFullList = ArrayList<Pair<Long, String>>()
+
+        ObjectInputStream(FileInputStream(file)).use{ it ->
+            val medialist = it.readObject()
+            when (medialist) {
+                is ArrayList<*> -> {
+                    Log.d(TAG, "Loading from file medialist.bin succeeded.")
+                    origFullList.addAll (medialist as ArrayList<Pair<Long, String>>)
+                }
+                else -> Log.e(TAG, "Loading from file medialist.bin failed!")
+            }
+
+            Log.d(TAG, medialist.toString())
+        }
+
+
         for (i in fullList) {
-            copyToNas(i.second, i.first, params )
+            if (i in origFullList) {
+                /*Log.d(TAG, i.second + " file already synced in history.")*/
+            }
+            else {
+                copyToNas(i.second, i.first, params)
+                origFullList.add(i)
+            }
+        }
+
+        ObjectOutputStream(FileOutputStream(file)).use {
+                it -> it.writeObject(origFullList)
         }
 
         return returnVal
