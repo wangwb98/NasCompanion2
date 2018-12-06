@@ -361,7 +361,7 @@ class MainActivity : AppCompatActivity() {
         filter.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION)
         filter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION)
         filter.addAction(ConnectivityManager.CONNECTIVITY_ACTION)
-        registerReceiver(NetworkConnectChangedReceiver, filter)
+        this.application.registerReceiver(NetworkConnectChangedReceiver, filter)
         setSupportActionBar(toolbar)
         toast("start running")
 
@@ -415,6 +415,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         LocalBroadcastManager.getInstance(applicationContext).unregisterReceiver((broadCastReceiver))
+        this.application.unregisterReceiver(NetworkConnectChangedReceiver)
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
