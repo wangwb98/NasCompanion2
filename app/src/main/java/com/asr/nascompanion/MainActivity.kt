@@ -151,8 +151,11 @@ class NasSyncJob : Job() {
             projection[0] + " DESC")
         if (cursor == null) return fullList
         assert(! cursor.moveToFirst())
+        Log.d(TAG, cursor.columnNames.toString() )
         do {
-            val n_list = cursor.getString(cursor.getColumnIndex(data_col)).split("/")
+            val dataItem = cursor.getString(cursor.getColumnIndex(data_col))
+            //Log.d(TAG, dataItem)
+            val n_list = dataItem.split("/")
             val fileName = n_list[n_list.lastIndex-1]+"/"+n_list[n_list.lastIndex]
             // Log.d(TAG, fileName+", taken on "+cursor.getString(cursor.getColumnIndex(date_taken_col)))
 
@@ -171,7 +174,11 @@ class NasSyncJob : Job() {
         val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID) */
         val file = File(context.filesDir, "medialist.bin")
 
+
         val fullList= mutableListOf<Pair<Long, String>>()
+/*        ObjectOutputStream(FileOutputStream(file)).use {
+                it -> it.writeObject(fullList)
+        }*/
 
         var returnVal = true
 
@@ -180,22 +187,27 @@ class NasSyncJob : Job() {
             MediaStore.Images.Media.DATE_TAKEN), MediaStore.Images.Media.EXTERNAL_CONTENT_URI) ) {
             fullList.add(i)
         }
-        Log.d(TAG, "Phone media files count:" + fullList.size)
+        Log.d(TAG, "Phone img files count:" + fullList.size)
         for (i in getFileList(arrayOf(MediaStore.Video.Media.DATA,
             MediaStore.Video.Media.DATE_MODIFIED,
             MediaStore.Video.Media.DATE_TAKEN), MediaStore.Video.Media.EXTERNAL_CONTENT_URI) ) {
             fullList.add(i)
         }
-        Log.d(TAG, "Phone media files count:" + fullList.size)
-        for (i in getFileList(arrayOf(MediaStore.Audio.Media.DATA,
+        Log.d(TAG, "Phone img/video files count:" + fullList.size)
+        /*for (i in getFileList(arrayOf(MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DATE_MODIFIED,
             MediaStore.Audio.Media.DATE_MODIFIED), MediaStore.Audio.Media.EXTERNAL_CONTENT_URI) ) {
             fullList.add(i)
         }
-        Log.d(TAG, "Phone media files count:" + fullList.size)
+        Log.d(TAG, "Phone img/video/audio files count:" + fullList.size)*/
 
         val origFullList = ArrayList<Pair<Long, String>>()
 
+        if (! file.exists() ) {
+            ObjectOutputStream(FileOutputStream(file)).use {
+                    it -> it.writeObject(origFullList)
+            }
+        }
         ObjectInputStream(FileInputStream(file)).use{ it ->
             val medialist = it.readObject()
             when (medialist) {
@@ -213,16 +225,25 @@ class NasSyncJob : Job() {
         for (i in fullList) {
             if (i in origFullList) {
                 /*Log.d(TAG, i.second + " file already synced in history.")*/
+                val intent = Intent()
+                intent.action = "com.asr.nascompanion.updateStatus"
+                intent.putExtra("msg", "\n"+i.second+" already synced before.")
+                LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
             }
             else {
-                copyToNas(i.second, i.first, params)
-                origFullList.add(i)
+                if (copyToNas(i.second, i.first, params))
+                    origFullList.add(i)
             }
         }
 
         ObjectOutputStream(FileOutputStream(file)).use {
                 it -> it.writeObject(origFullList)
         }
+
+        val intent = Intent()
+        intent.action = "com.asr.nascompanion.updateStatus"
+        intent.putExtra("msg", "\n"+" Sync finished\n")
+        LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
 
         return returnVal
     }
@@ -231,6 +252,7 @@ class NasSyncJob : Job() {
     }
 
     private fun copyToNas(path: String, date_taken: Long, params: Params): Boolean {
+        var ret = true
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
 
@@ -250,7 +272,7 @@ class NasSyncJob : Job() {
                 params.extras.getString("server_pass", this.context.getString(R.string.pref_default_server_pass)))
         }
 
-        val server_addr = params.extras.getString("server_url", this.context.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+        val server_addr = params.extras.getString("server_url", this.context.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL.replace(" ","_")
         val n_list = path.split("/")
         val folder_name = n_list[n_list.lastIndex-1]
         val file_name = n_list[n_list.lastIndex]
@@ -304,10 +326,12 @@ class NasSyncJob : Job() {
                 is SmbException -> {
                     Log.d(TAG, "Samba connection met issue:"+e.localizedMessage)
                     fileResult = "Network down"
+                    ret = false
                 }
                 is java.io.FileNotFoundException -> {
                     Log.d(TAG, "Local file not found:"+e.localizedMessage)
                     fileResult = "Local file not found"
+                    ret = false
                 }
                 else -> throw e
             }
@@ -315,7 +339,7 @@ class NasSyncJob : Job() {
         intent.putExtra("msg", fileResult)
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
 
-        return true
+        return ret
     }
 }
 
@@ -416,7 +440,7 @@ class MainActivity : AppCompatActivity() {
                 val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 val server_user = prefs.getString("server_user", applicationContext.getString(R.string.pref_default_server_user))
                 val server_pass = prefs.getString("server_pass", applicationContext.getString(R.string.pref_default_server_pass))
-                val server_addr = prefs.getString("server_url", applicationContext.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+                val server_addr = prefs.getString("server_url", applicationContext.getString(R.string.pref_default_server_url))
                 val targetSsidList = prefs.getString("wifi_ssid", applicationContext.getString(R.string.pref_default_wifi_ssid))
                 NasSyncJob.runJobImmediatelly(user = server_user,
                     pass = server_pass, addr = server_addr, ssidList = targetSsidList)
