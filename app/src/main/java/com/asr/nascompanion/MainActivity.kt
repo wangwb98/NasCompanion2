@@ -427,7 +427,7 @@ class MainActivity : AppCompatActivity() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
         val server_user = prefs.getString("server_user", applicationContext.getString(R.string.pref_default_server_user))
         val server_pass = prefs.getString("server_pass", applicationContext.getString(R.string.pref_default_server_pass))
-        val server_addr = prefs.getString("server_url", applicationContext.getString(R.string.pref_default_server_url)) +"/nas_" + Build.MODEL
+        val server_addr = prefs.getString("server_url", applicationContext.getString(R.string.pref_default_server_url))
         val targetSsidList = prefs.getString("wifi_ssid", applicationContext.getString(R.string.pref_default_wifi_ssid))
 
         NasSyncJob.scheduleJob(interval = prefs.getString("sync_frequency", "180").toInt(), user = server_user,
