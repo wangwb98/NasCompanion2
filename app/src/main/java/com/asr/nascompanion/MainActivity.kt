@@ -2,9 +2,9 @@ package com.asr.nascompanion
 
 import android.os.Bundle
 import android.provider.MediaStore
-import android.support.design.widget.Snackbar
-import android.support.v4.content.ContextCompat
-import android.support.v7.app.AppCompatActivity
+import com.google.android.material.snackbar.Snackbar
+import androidx.core.content.ContextCompat
+import androidx.appcompat.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
 
@@ -22,8 +22,8 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.PersistableBundle
 import android.preference.PreferenceManager
-import android.support.v4.app.ActivityCompat
-import android.support.v4.content.LocalBroadcastManager
+import androidx.core.app.ActivityCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import com.evernote.android.job.Job
@@ -142,7 +142,7 @@ class NasSyncJob : Job() {
             MediaStore.Images.Media.DATE_TAKEN)*/
         val data_col = projection[0]
         val date_mod_col = projection[1]
-        val date_taken_col = projection[2]
+        //val date_taken_col = projection[2]
         val fullList= mutableListOf<Pair<Long, String>>()
         val cursor = this.context.contentResolver.query(target_uri,
             projection,
@@ -417,6 +417,9 @@ class MainActivity : AppCompatActivity() {
         this.application.registerReceiver(NetworkConnectChangedReceiver, filter)
         setSupportActionBar(toolbar)
         toast("start running")
+
+        val i = Intent(this, FgService::class.java)
+        startService(i)
 
         /* request for permissions */
         val REQUEST_READ_STORAGE_REQUEST_CODE = 112
