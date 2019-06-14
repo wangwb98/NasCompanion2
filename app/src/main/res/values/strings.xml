@@ -82,4 +82,8 @@
     <string name="pref_default_server_pass">anonymous</string>
     <string name="pref_title_wifi_ssid">Supported WIFI ssid list (separated by , )</string>
     <string name="pref_default_wifi_ssid">testwifiname</string>
+    <string name="channel_name">notification__channel</string>
+    <string name="channel_description">Notification Channel for NasCompanion</string>
+    <string name="notification_title">Backup service</string>
+    <string name="notification_content">Will sync files</string>
 </resources>

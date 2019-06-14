@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NasCompanion</string>
+    <string name="notification_content">定期同步文件</string>
+    <string name="notification_title">家庭存储备份服务</string>
+</resources>
