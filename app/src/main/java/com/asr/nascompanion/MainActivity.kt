@@ -137,7 +137,7 @@ class MainActivity : AppCompatActivity() {
         fab.setOnClickListener { view ->
             Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
                 .setAction("Action", null).show()
-/*            if ( checkPermission() ) {
+            if ( checkPermission() ) {
                 val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
                 val server_user = prefs.getString("server_user", applicationContext.getString(R.string.pref_default_server_user))
                 val server_pass = prefs.getString("server_pass", applicationContext.getString(R.string.pref_default_server_pass))
@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
                     pass = server_pass, addr = server_addr, ssidList = targetSsidList)
             }
             else
-                longToast("No permission to read storage files. Need to be granted.")*/
+                longToast("No permission to read storage files. Need to be granted.")
             //applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         }
 

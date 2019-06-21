@@ -21,7 +21,10 @@ import jcifs.smb.NtlmPasswordAuthentication
 import jcifs.smb.SmbException
 import jcifs.smb.SmbFile
 import java.io.*
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.collections.ArrayList
 
 class FgService : Service() {
     companion object {
@@ -153,15 +156,22 @@ class NasSyncJob : Job() {
     fun updateFgNotification(text: String?) {
         // Create an explicit intent for an Activity in your app
         // magically we should not use requestCode 0, otherwise MainActivity will be created again.
+        val intent2 = Intent(context, MainActivity::class.java).apply {
+            this.flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+
+        // magically we should not use requestCode 0, otherwise MainActivity will be created again.
+        val pendingIntent: PendingIntent = PendingIntent.getActivity(context, 1, intent2, 0)
+
         val notif = NotificationCompat.Builder(context, FgService.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_icon)
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(text)
             // Set the intent that will fire when the user taps the notification
-//            .setContentIntent(pendingIntent)
+            .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setOnlyAlertOnce(true)
             .build()
-
 
         val mNotifManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
         mNotifManager!!.notify(FgService.notificationId, notif)
@@ -188,7 +198,8 @@ class NasSyncJob : Job() {
         intent.putExtra("endTime", System.currentTimeMillis())
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
 
-        updateFgNotification(System.currentTimeMillis().toString())
+        val t = context.getString(R.string.notification_update).format(if (result) "pass" else "fail",convertLongToTime(System.currentTimeMillis()))
+        updateFgNotification(t)
 
 //        FgService.updateFg
 
@@ -201,7 +212,11 @@ class NasSyncJob : Job() {
             return Result.SUCCESS
         else return Result.RESCHEDULE
     }
-
+    private fun convertLongToTime(time: Long): String {
+        val date = Date(time)
+        val format = SimpleDateFormat("yyyy.MM.dd HH:mm")
+        return format.format(date)
+    }
     private fun getFileList(projection: Array<String>, target_uri:android.net.Uri): MutableList<Pair<Long, String>> {
         /*val projection = arrayOf(MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,
