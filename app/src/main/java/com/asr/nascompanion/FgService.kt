@@ -63,7 +63,13 @@ class FgService : Service() {
         with(NotificationManagerCompat.from(this)) {
             // notificationId is a unique int for each notification that you must define
             //notify(notificationId, builder.build())
-            startForeground(notificationId, getMyNotification(getString(R.string.notification_content)))
+            val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+            val mEnd = prefs.getLong("LastSyncEndDateLong",0)
+            if (mEnd == 0L ) {
+                startForeground(notificationId, getMyNotification("INFO: Never synced on this device."))
+            }
+            else
+                startForeground(notificationId, getMyNotification(getString(R.string.notification_content).format(convertLongToTime(mEnd))))
         }
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
