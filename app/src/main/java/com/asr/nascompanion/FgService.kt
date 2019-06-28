@@ -212,11 +212,7 @@ class NasSyncJob : Job() {
             return Result.SUCCESS
         else return Result.RESCHEDULE
     }
-    private fun convertLongToTime(time: Long): String {
-        val date = Date(time)
-        val format = SimpleDateFormat("yyyy.MM.dd HH:mm")
-        return format.format(date)
-    }
+
     private fun getFileList(projection: Array<String>, target_uri:android.net.Uri): MutableList<Pair<Long, String>> {
         /*val projection = arrayOf(MediaStore.Images.Media.DATA,
             MediaStore.Images.Media.DATE_MODIFIED,

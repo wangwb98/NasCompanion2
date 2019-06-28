@@ -161,11 +161,7 @@ class MainActivity : AppCompatActivity() {
         val mEnd = convertLongToTime(prefs.getLong("LastSyncEndDateLong",0))
         textTime.text = "Last Sync: "+ mStart + " -> "+ mEnd
     }
-    private fun convertLongToTime(time: Long): String {
-        val date = Date(time)
-        val format = SimpleDateFormat("yyyy.MM.dd HH:mm")
-        return format.format(date)
-    }
+
     override fun onDestroy() {
         super.onDestroy()
         LocalBroadcastManager.getInstance(applicationContext).unregisterReceiver((broadCastReceiver))
