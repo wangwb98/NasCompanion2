@@ -70,6 +70,7 @@ class MainActivity : AppCompatActivity() {
                         .putLong("LastSyncEndDateLong", eTime)
                         .putLong("LastSyncStartDateLong", sTime)
                         .apply()
+                    Log.d(TAG, "write last start time %s, end time %s".format(convertLongToTime(sTime), convertLongToTime(eTime)))
 
                     runOnUiThread { ->
                         val mStart = convertLongToTime(prefs.getLong("LastSyncStartDateLong",0))

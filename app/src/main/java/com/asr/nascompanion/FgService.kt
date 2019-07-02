@@ -65,6 +65,7 @@ class FgService : Service() {
             //notify(notificationId, builder.build())
             val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
             val mEnd = prefs.getLong("LastSyncEndDateLong",0)
+            Log.d("FgService", "load last End time %s".format(convertLongToTime(mEnd)))
             if (mEnd == 0L ) {
                 startForeground(notificationId, getMyNotification("INFO: Never synced on this device."))
             }
