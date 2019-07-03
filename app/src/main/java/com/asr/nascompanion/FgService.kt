@@ -174,6 +174,7 @@ class NasSyncJob : Job() {
             .setSmallIcon(R.drawable.ic_notification_icon)
             .setContentTitle(context.getString(R.string.notification_title))
             .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             // Set the intent that will fire when the user taps the notification
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -204,11 +205,6 @@ class NasSyncJob : Job() {
         intent.action = "com.asr.nascompanion.updateTime"
         intent.putExtra("endTime", System.currentTimeMillis())
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
-
-        val t = context.getString(R.string.notification_update).format(if (result) "pass" else "fail",convertLongToTime(System.currentTimeMillis()))
-        updateFgNotification(t)
-
-//        FgService.updateFg
 
 /*
         prefs.edit()
@@ -307,6 +303,7 @@ class NasSyncJob : Job() {
             //Log.d(TAG, medialist.toString())
         }
 
+        val toSyncList= ArrayList<Pair<Long, String>>()
 
         for (i in fullList) {
             if (i in origFullList) {
@@ -317,9 +314,13 @@ class NasSyncJob : Job() {
                 LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
             }
             else {
-                if (copyToNas(i.second, i.first, params))
-                    origFullList.add(i)
+                toSyncList.add(i)
             }
+        }
+
+        for (i in toSyncList) {
+            if (copyToNas(i.second, i.first, params))
+                origFullList.add(i)
         }
 
         ObjectOutputStream(FileOutputStream(file)).use {
@@ -329,6 +330,10 @@ class NasSyncJob : Job() {
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
         intent.putExtra("msg", "\n"+" Sync finished\n")
+        intent.putExtra("number", arrayOf(toSyncList.size, origFullList.size))
+        val t = context.getString(R.string.notification_update).format("pass",convertLongToTime(System.currentTimeMillis()),toSyncList.size, fullList.size, origFullList.size )
+        updateFgNotification(t)
+
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
 
         return returnVal

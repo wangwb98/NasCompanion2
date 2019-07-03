@@ -3,6 +3,6 @@
     <string name="app_name">NasCompanion</string>
     <string name="notification_content">上次同步完成于%s</string>
     <string name="notification_title">家庭存储备份服务</string>
-    <string name="notification_update">同步%s，时间%s</string>
+    <string name="notification_update">"同步%s，时间%s\n%d/%d 历史上同步了%d个文件 "</string>
     <string name="channel_name">同步状态通知</string>
 </resources>
