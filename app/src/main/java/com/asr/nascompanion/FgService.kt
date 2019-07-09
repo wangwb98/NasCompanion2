@@ -160,7 +160,7 @@ class NasSyncJob : Job() {
         }
     }
 
-    fun updateFgNotification(text: String?) {
+    fun updateFgNotification(title: String?, text: String?) {
         // Create an explicit intent for an Activity in your app
         // magically we should not use requestCode 0, otherwise MainActivity will be created again.
         val intent2 = Intent(context, MainActivity::class.java).apply {
@@ -172,7 +172,7 @@ class NasSyncJob : Job() {
 
         val notif = NotificationCompat.Builder(context, FgService.CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification_icon)
-            .setContentTitle(context.getString(R.string.notification_title))
+            .setContentTitle(title)
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             // Set the intent that will fire when the user taps the notification
@@ -331,8 +331,9 @@ class NasSyncJob : Job() {
         intent.action = "com.asr.nascompanion.updateStatus"
         intent.putExtra("msg", "\n"+" Sync finished\n")
         intent.putExtra("number", arrayOf(toSyncList.size, origFullList.size))
-        val t = context.getString(R.string.notification_update).format("pass",convertLongToTime(System.currentTimeMillis()),toSyncList.size, fullList.size, origFullList.size )
-        updateFgNotification(t)
+        val title = context.getString(R.string.notification_update_title).format(convertLongToTime(System.currentTimeMillis()))
+        val t = context.getString(R.string.notification_update_content).format(fullList.size-toSyncList.size, fullList.size, origFullList.size )
+        updateFgNotification(title, t)
 
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
 
