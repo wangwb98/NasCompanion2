@@ -88,4 +88,6 @@
     <string name="notification_update_title">Synced at %s</string>
     <string name="notification_update_content">%d/%d synced | Total %d in history</string>
     <string name="channel_name">Track sync status</string>
+    <string name="checkbox">CheckBox</string>
+    <string name="pref_sync_folder_setting">Select folders to sync</string>
 </resources>

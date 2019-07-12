@@ -26,6 +26,7 @@ import androidx.core.app.ActivityCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.evernote.android.job.Job
 import com.evernote.android.job.JobCreator
 import com.evernote.android.job.JobManager
@@ -151,7 +152,6 @@ class MainActivity : AppCompatActivity() {
                 longToast("No permission to read storage files. Need to be granted.")
             //applicationContext.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         }
-
     }
 
     override fun onResume() {
