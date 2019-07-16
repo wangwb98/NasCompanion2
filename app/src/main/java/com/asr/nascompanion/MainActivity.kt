@@ -46,8 +46,16 @@ import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
 class NasCompanionApp : Application() {
+    companion object {
+        private lateinit var appContext: Context
+
+        fun applicationContext(): Context {
+            return appContext
+        }
+    }
     override fun onCreate() {
         super.onCreate()
+        appContext = applicationContext
     }
 }
 
