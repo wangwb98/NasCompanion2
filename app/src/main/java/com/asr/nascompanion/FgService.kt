@@ -222,35 +222,19 @@ class NasSyncJob : Job() {
         val CAMERA_IMAGE_BUCKET_ID = getBucketId(CAMERA_IMAGE_BUCKET_NAME)
         val selectionArgs = arrayOf(CAMERA_IMAGE_BUCKET_ID) */
         val file = File(context.filesDir, "medialist.bin")
+        var tList: List<String>
+
+        val folderSyncList = loadSyncFolderList()
 
 
-        val fullList= mutableListOf<Pair<Long, String>>()
 /*        ObjectOutputStream(FileOutputStream(file)).use {
                 it -> it.writeObject(fullList)
         }*/
 
         var returnVal = true
 
-        for (i in getFileList(arrayOf(
-            MediaStore.Images.Media.DATA,
-            MediaStore.Images.Media.DATE_MODIFIED,
-            MediaStore.Images.Media.DATE_TAKEN), MediaStore.Images.Media.EXTERNAL_CONTENT_URI) ) {
-            fullList.add(i)
-        }
-        Log.d(TAG, "Phone img files count:" + fullList.size)
-        for (i in getFileList(arrayOf(
-            MediaStore.Video.Media.DATA,
-            MediaStore.Video.Media.DATE_MODIFIED,
-            MediaStore.Video.Media.DATE_TAKEN), MediaStore.Video.Media.EXTERNAL_CONTENT_URI) ) {
-            fullList.add(i)
-        }
-        Log.d(TAG, "Phone img/video files count:" + fullList.size)
-        /*for (i in getFileList(arrayOf(MediaStore.Audio.Media.DATA,
-            MediaStore.Audio.Media.DATE_MODIFIED,
-            MediaStore.Audio.Media.DATE_MODIFIED), MediaStore.Audio.Media.EXTERNAL_CONTENT_URI) ) {
-            fullList.add(i)
-        }
-        Log.d(TAG, "Phone img/video/audio files count:" + fullList.size)*/
+        var fullList = getAllMediaFiles()
+        Log.d(TAG, "Phone img/video/audio files count:" + fullList.size)
 
         val origFullList = ArrayList<Pair<Long, String>>()
 
@@ -283,7 +267,10 @@ class NasSyncJob : Job() {
                 LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
             }
             else {
-                toSyncList.add(i)
+                tList  = i.second.split("/")
+                if (folderSyncList.contains(tList[tList.lastIndex -1])) {
+                    toSyncList.add(i)
+                }
             }
         }
 
