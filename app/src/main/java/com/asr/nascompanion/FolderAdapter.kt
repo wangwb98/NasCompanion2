@@ -28,7 +28,7 @@ class FolderAdapter(val fullList:  MutableList<String>, val folderNoSynced: Muta
                     //Log.d(UTILS_TAG, "adding %s".format(name))
                 }
                 // save the folder list to storage device.
-                //Log.d(UTILS_TAG, "full list is: %s".format(folderSynced.joinToString(separator =", ", prefix = "[",postfix="]")))
+                //Log.d(UTILS_TAG, "full list is: %s".format(folderNoSynced.joinToString(separator =", ", prefix = "[",postfix="]")))
                 storeSyncFolderList(folderNoSynced)
                 vcheckbox.toggle()
             }
