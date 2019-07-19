@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import kotlinx.android.synthetic.main.folder_tile.view.*
 import org.jetbrains.anko.*
 
-class FolderAdapter(val fullList:  MutableList<String>, val folderSynced: MutableList<String>) : RecyclerView.Adapter<FolderAdapter.ViewHolder>() {
+class FolderAdapter(val fullList:  MutableList<String>, val folderNoSynced: MutableList<String>) : RecyclerView.Adapter<FolderAdapter.ViewHolder>() {
     inner class ViewHolder (view: View) : RecyclerView.ViewHolder(view) {
         val vcheckbox = view.checkBox
         val vFolderName = view.folderName
@@ -19,17 +19,17 @@ class FolderAdapter(val fullList:  MutableList<String>, val folderSynced: Mutabl
             view.setOnClickListener {
                 val name = vFolderName.text.toString()
                 //NasCompanionApp.applicationContext().toast("test")
-                if (folderSynced.contains(name)) {
-                    folderSynced.remove(name)
+                if (folderNoSynced.contains(name)) {
+                    folderNoSynced.remove(name)
                     //Log.d(UTILS_TAG, "removing %s".format(name))
                 }
                 else {
-                    folderSynced.add(name)
+                    folderNoSynced.add(name)
                     //Log.d(UTILS_TAG, "adding %s".format(name))
                 }
                 // save the folder list to storage device.
                 //Log.d(UTILS_TAG, "full list is: %s".format(folderSynced.joinToString(separator =", ", prefix = "[",postfix="]")))
-                storeSyncFolderList(folderSynced)
+                storeSyncFolderList(folderNoSynced)
                 vcheckbox.toggle()
             }
         }
@@ -45,7 +45,7 @@ class FolderAdapter(val fullList:  MutableList<String>, val folderSynced: Mutabl
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.vFolderName.text = fullList[position]
-        holder.vcheckbox?.isChecked = folderSynced.contains(fullList[position])
+        holder.vcheckbox?.isChecked = !folderNoSynced.contains(fullList[position])
     }
 }
 

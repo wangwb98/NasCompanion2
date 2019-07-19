@@ -15,34 +15,34 @@ fun convertLongToTime(time: Long): String {
 
 fun loadSyncFolderList(): MutableList<String> {
     val file = File(NasCompanionApp.applicationContext().filesDir, "syncfl.bin")
-    val syncFolderList = ArrayList<String>()
+    val noSyncFolderList = ArrayList<String>()
 
     if (! file.exists() ) {
         ObjectOutputStream(FileOutputStream(file)).use {
-                it -> it.writeObject(syncFolderList)
+                it -> it.writeObject(noSyncFolderList)
         }
     }
     ObjectInputStream(FileInputStream(file)).use{ it ->
         val flist = it.readObject()
         when (flist) {
             is ArrayList<*> -> {
-                syncFolderList.addAll (flist as ArrayList<String>)
+                noSyncFolderList.addAll (flist as ArrayList<String>)
             }
             else -> Log.e(UTILS_TAG, "Loading from file syncfl.bin failed!")
         }
         //Log.d(TAG, medialist.toString())
     }
-    return syncFolderList
+    return noSyncFolderList
 /*
     ObjectOutputStream(FileOutputStream(file)).use {
             it -> it.writeObject(origFullList)
     }*/
 }
 
-fun storeSyncFolderList(syncFolderList: MutableList<String>) {
+fun storeSyncFolderList(noSyncFolderList: MutableList<String>) {
     val file = File(NasCompanionApp.applicationContext().filesDir, "syncfl.bin")
     ObjectOutputStream(FileOutputStream(file)).use {
-            it -> it.writeObject(syncFolderList)
+            it -> it.writeObject(noSyncFolderList)
     }
 }
 

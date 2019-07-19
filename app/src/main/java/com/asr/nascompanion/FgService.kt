@@ -7,7 +7,6 @@ import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.IBinder
 import android.preference.PreferenceManager
-import android.provider.MediaStore
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -21,8 +20,6 @@ import jcifs.smb.NtlmPasswordAuthentication
 import jcifs.smb.SmbException
 import jcifs.smb.SmbFile
 import java.io.*
-import java.text.SimpleDateFormat
-import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.collections.ArrayList
 
@@ -224,7 +221,7 @@ class NasSyncJob : Job() {
         val file = File(context.filesDir, "medialist.bin")
         var tList: List<String>
 
-        val folderSyncList = loadSyncFolderList()
+        val folderNoSyncList = loadSyncFolderList()
 
 
 /*        ObjectOutputStream(FileOutputStream(file)).use {
@@ -268,7 +265,7 @@ class NasSyncJob : Job() {
             }
             else {
                 tList  = i.second.split("/")
-                if (folderSyncList.contains(tList[tList.lastIndex -1])) {
+                if (!folderNoSyncList.contains(tList[tList.lastIndex -1])) {
                     toSyncList.add(i)
                 }
             }

@@ -2,8 +2,6 @@ package com.asr.nascompanion
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.provider.MediaStore
-import android.util.Log
 import androidx.recyclerview.widget.LinearLayoutManager
 import kotlinx.android.synthetic.main.activity_folder_select.*
 
@@ -18,7 +16,7 @@ class FolderSelectActivity : AppCompatActivity() {
         setContentView(R.layout.activity_folder_select)
 
         val folderList= mutableListOf<String>()
-        var folderSynced = loadSyncFolderList()
+        var folderNoSynced = loadSyncFolderList()
         for (i in getAllMediaFiles()) {
             val nList = i.second.split("/")
             val folderName = nList[nList.lastIndex-1]
@@ -28,11 +26,10 @@ class FolderSelectActivity : AppCompatActivity() {
                 folderList.add(folderName)
         }
 
-        if (folderSynced.isEmpty()){
-            storeSyncFolderList(folderList)
-            folderSynced = folderList
+        if (folderNoSynced.isEmpty()){
+            storeSyncFolderList(folderNoSynced)
         }
         rv_folders.layoutManager = LinearLayoutManager(this)
-        rv_folders.adapter = FolderAdapter(folderList, folderSynced)
+        rv_folders.adapter = FolderAdapter(folderList, folderNoSynced)
     }
 }
