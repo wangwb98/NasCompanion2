@@ -16,6 +16,7 @@ class FolderSelectActivity : AppCompatActivity() {
         setContentView(R.layout.activity_folder_select)
 
         val folderList= mutableListOf<String>()
+        val longPathList= mutableListOf<String>()
         var folderNoSynced = loadSyncFolderList()
         if (folderNoSynced.isEmpty()){
             storeSyncFolderList(folderNoSynced)
@@ -26,14 +27,18 @@ class FolderSelectActivity : AppCompatActivity() {
             //Log.d(TAG, "foldername:" + folderName)
 
             if ( !folderList.contains(folderName)) {
-                if (folderNoSynced.contains(folderName)) // folders in noSync list will be at the end of the list
+                if (folderNoSynced.contains(folderName)) {// folders in noSync list will be at the end of the list
                     folderList.add(folderName)
-                else
+                    longPathList.add(i.second)
+                }
+                else {
                     folderList.add(0, folderName)
+                    longPathList.add(0,i.second)
+                }
             }
         }
 
         rv_folders.layoutManager = LinearLayoutManager(this)
-        rv_folders.adapter = FolderAdapter(folderList, folderNoSynced)
+        rv_folders.adapter = FolderAdapter(folderList, folderNoSynced, longPathList)
     }
 }
