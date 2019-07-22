@@ -10,20 +10,22 @@
             android:id="@+id/imageView"
             android:layout_alignParentTop="true"
             android:layout_alignParentLeft="true"
-            android:layout_weight="1" android:layout_marginLeft="30dp" android:layout_marginTop="34dp"/>
+            android:layout_weight="1" android:layout_marginLeft="4dp" android:layout_marginTop="7dp"/>
     <CheckBox
-            android:text="@string/checkbox"
-            android:layout_width="26dp"
-            android:layout_height="43dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_alignParentTop="true"
             android:layout_alignParentLeft="true"
             android:focusable="false"
             android:clickable="false"
             android:focusableInTouchMode="false"
-            android:id="@+id/checkBox" android:layout_weight="1"/>
+            android:id="@+id/checkBox" />
     <TextView
             android:text="TextView"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:id="@+id/folderName" android:layout_toEndOf="@+id/checkBox"
-            android:layout_marginStart="8dp"/>
+            android:layout_height="wrap_content"
+            android:id="@+id/folderName"
+            android:layout_toEndOf="@+id/imageView" android:layout_marginStart="3dp" android:layout_alignTop="@+id/imageView"
+            android:gravity="center"
+            android:layout_alignBottom="@+id/imageView"/>
 </RelativeLayout>

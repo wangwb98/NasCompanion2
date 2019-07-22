@@ -17,18 +17,22 @@ class FolderSelectActivity : AppCompatActivity() {
 
         val folderList= mutableListOf<String>()
         var folderNoSynced = loadSyncFolderList()
+        if (folderNoSynced.isEmpty()){
+            storeSyncFolderList(folderNoSynced)
+        }
         for (i in getAllMediaFiles()) {
             val nList = i.second.split("/")
             val folderName = nList[nList.lastIndex-1]
             //Log.d(TAG, "foldername:" + folderName)
 
-            if ( !folderList.contains(folderName))
-                folderList.add(folderName)
+            if ( !folderList.contains(folderName)) {
+                if (folderNoSynced.contains(folderName)) // folders in noSync list will be at the end of the list
+                    folderList.add(folderName)
+                else
+                    folderList.add(0, folderName)
+            }
         }
 
-        if (folderNoSynced.isEmpty()){
-            storeSyncFolderList(folderNoSynced)
-        }
         rv_folders.layoutManager = LinearLayoutManager(this)
         rv_folders.adapter = FolderAdapter(folderList, folderNoSynced)
     }
