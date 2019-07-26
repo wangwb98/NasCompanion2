@@ -256,24 +256,36 @@ class NasSyncJob : Job() {
         val toSyncList= ArrayList<Pair<Long, String>>()
 
         for (i in fullList) {
-            if (i in origFullList) {
+            tList  = i.second.split("/")
+            if (!folderNoSyncList.contains(tList[tList.lastIndex -1])) {
+                toSyncList.add(i)
+            }
+        }
+
+        var failed_count = 0
+        var strFailedMsg = "\n\n----Failed to sync files ----"
+        for (i in toSyncList) {
+            if (origFullList.contains(i)) {
                 /*Log.d(TAG, i.second + " file already synced in history.")*/
                 val intent = Intent()
                 intent.action = "com.asr.nascompanion.updateStatus"
                 intent.putExtra("msg", "\n"+i.second+" already synced before.")
                 LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
-            }
-            else {
-                tList  = i.second.split("/")
-                if (!folderNoSyncList.contains(tList[tList.lastIndex -1])) {
-                    toSyncList.add(i)
-                }
-            }
-        }
 
-        for (i in toSyncList) {
+                continue
+            }
             if (copyToNas(i.second, i.first, params))
                 origFullList.add(i)
+            else {
+                failed_count += 1
+                strFailedMsg+="\n"+i.second
+            }
+        }
+        if (failed_count > 0) {
+            val intent = Intent()
+            intent.action = "com.asr.nascompanion.updateStatus"
+            intent.putExtra("msg", strFailedMsg)
+            LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
         }
 
         ObjectOutputStream(FileOutputStream(file)).use {
@@ -282,10 +294,10 @@ class NasSyncJob : Job() {
 
         val intent = Intent()
         intent.action = "com.asr.nascompanion.updateStatus"
-        intent.putExtra("msg", "\n"+" Sync finished\n")
+        intent.putExtra("msg", "\n\n"+" Sync finished\n")
         intent.putExtra("number", arrayOf(toSyncList.size, origFullList.size))
         val title = context.getString(R.string.notification_update_title).format(convertLongToTime(System.currentTimeMillis()))
-        val t = context.getString(R.string.notification_update_content).format(fullList.size-toSyncList.size, fullList.size, origFullList.size )
+        val t = context.getString(R.string.notification_update_content).format(toSyncList.size - failed_count, toSyncList.size, origFullList.size )
         updateFgNotification(title, t)
 
         LocalBroadcastManager.getInstance(this.context).sendBroadcastSync(intent)
