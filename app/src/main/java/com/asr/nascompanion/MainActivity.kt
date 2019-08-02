@@ -136,8 +136,11 @@ class MainActivity : AppCompatActivity() {
         toast("start running")
 
         val i = Intent(this, FgService::class.java)
-        startForegroundService(i)
-
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O){
+            startForegroundService(i);
+        }else{
+            startService(i);
+        }
         /* request for permissions */
         val REQUEST_READ_STORAGE_REQUEST_CODE = 112
         ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.ACCESS_COARSE_LOCATION), REQUEST_READ_STORAGE_REQUEST_CODE)
