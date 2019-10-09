@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
                     prefs.edit()
                         .putLong("LastSyncEndDateLong", eTime)
                         .putLong("LastSyncStartDateLong", sTime)
-                        .apply()
+                        .commit()
                     Log.d(TAG, "write last start time %s, end time %s".format(convertLongToTime(sTime), convertLongToTime(eTime)))
 
                     runOnUiThread { ->
